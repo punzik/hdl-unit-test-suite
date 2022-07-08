@@ -564,6 +564,11 @@
       (let ((sources (append (map (lambda (x) (path->absolute x base-path))
                                   (arg-to-list sources))
                              (list timeout-module dump-module)))
+
+            (defines (append defines
+                             `((UTEST_BASE_DIR ,(format "'\"~a\"'" base-path))
+                               (UTEST_WORK_DIR ,(format "'\"~a\"'" work-path)))))
+
             (includes (map (lambda (x) (path->absolute x base-path)) (arg-to-list includes)))
             (modpaths (map (lambda (x) (path->absolute x base-path)) (arg-to-list modpaths)))
             (vpipaths (map (lambda (x) (path->absolute x base-path)) (arg-to-list vpipaths)))
