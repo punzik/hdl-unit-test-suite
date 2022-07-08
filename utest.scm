@@ -441,6 +441,11 @@
                            (parameters '())         ; -P=X
                            (other '()))
 
+  (define (string-or-num-param x)
+    (if (number? x)
+        (format "~a" x)
+        (format "'\"~a\"'" x)))
+
   (let ((opts
          (cons
           iverilog-executable
@@ -463,11 +468,11 @@
                           (if (or (not top) (list? top))
                               (car x)
                               (format "~a.~a" top (car x)))
-                          (cadr x)))
+                          (string-or-num-param (cadr x))))
                 parameters)
            (map (lambda (x)
                   (if (list? x)
-                      (format "-D~a=~a" (car x) (cadr x))
+                      (format "-D~a=~a" (car x) (string-or-num-param (cadr x)))
                       (format "-D~a" x)))
                 defines)
            other
