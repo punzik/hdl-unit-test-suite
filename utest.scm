@@ -683,7 +683,8 @@
            (work (mkdtemp (format "~a/~a~a-~a-~a-XXXXXX"
                                   base WORK_DIR_PREFIX
                                   makefile-name
-                                  (string-map (lambda (c) (if (char-whitespace? c) #\_ c)) name)
+                                  (string-map (lambda (c) (if (char-whitespace? c) #\_ c))
+                                              (string-downcase name))
                                   (current-time)))))
       ;; Execute test
       (let* ((p #f)
