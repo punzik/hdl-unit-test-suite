@@ -178,6 +178,42 @@
    log-strings))
 
 ;;;
+;;; Catch exception and continue with default value
+;;;
+(define-syntax guard
+  (syntax-rules ()
+    ((_ default code...)
+     (with-exception-handler (lambda (e) default)
+       (lambda () code...)
+       #:unwind? #t))))
+
+;;;
+;;; Check path existence
+;;; If path not exists throw exception
+;;;
+(define (check-path path)
+  (if (not (file-exists? path))
+      (raise-exception (format "Path ~a is not exists" path))
+      (let ((type (stat:type (stat path))))
+        (if (or (not (access? path R_OK))
+                (and (eq? type 'directory)
+                     (not (access? path X_OK))))
+            (raise-exception (format "Path ~a is not readable" path))
+            #t))))
+
+;;;
+;;; Convert path to absolute path
+;;;
+(define* (path->absolute path #:optional (base ""))
+  (let ((path
+         (if (or (string-null? base)
+                 (absolute-file-name? path))
+             path
+             (string-append base "/" path))))
+    (check-path path)
+    (canonicalize-path path)))
+
+;;;
 ;;; Create file with simulation timeout watchdog
 ;;;
 (define (create-timeout-module path modname timeout)
@@ -202,7 +238,7 @@
         (* "    $finish;")
         (* "  end")
         (* "endmodule")))
-    (canonicalize-path filename)))
+    (path->absolute filename)))
 
 ;;;
 ;;; Create dump module
@@ -221,29 +257,31 @@
         (* "    $dumpvars(0, ~a);" top)
         (* "  end")
         (* "endmodule")))
-    (canonicalize-path filename)))
+    (path->absolute filename)))
 
 ;;;
 ;;; Return directory list
 ;;;
 (define (list-dir path)
-  (let ((dir (opendir path)))
-    (let loop ((ls '()))
-      (let ((item (readdir dir)))
-        (if (eof-object? item)
-            (begin
-              (closedir dir)
-              ls)
-            (if (or (string=? item ".")
-                    (string=? item ".."))
-                (loop ls)
-                (loop (cons (string-append path "/" item) ls))))))))
+  (if (file-exists? path)
+      (let ((dir (opendir path)))
+        (let loop ((ls '()))
+          (let ((item (readdir dir)))
+            (if (eof-object? item)
+                (begin
+                  (closedir dir)
+                  ls)
+                (if (or (string=? item ".")
+                        (string=? item ".."))
+                    (loop ls)
+                    (loop (cons (string-append path "/" item) ls)))))))
+      '()))
 
 ;;;
 ;;; Recursive delete directory
 ;;;
 (define (delete-recursive path)
-  (let ((path (canonicalize-path path)))
+  (let ((path (path->absolute path)))
     (if (eq? 'directory (stat:type (stat path)))
         (begin
           (for-each delete-recursive (list-dir path))
@@ -251,42 +289,48 @@
         (delete-file path))))
 
 ;;;
-;;; Convert path to absolute path
-;;;
-(define* (path->absolute path #:optional (base ""))
-  (canonicalize-path
-   (if (string-null? base)
-       path
-       (string-append base "/" path))))
-
-;;;
-;;; Find path items for which the function f returns true
+;;; Recursive find path items for which the function f returns true
 ;;; (fn fullpath type) : (-> (string symbol) boolean)
 ;;; Returns empty list if files not found
 ;;;
-(define* (find-paths fn base #:optional (follow-symlink #f))
+(define* (find-paths-rec fn base #:optional (follow-symlink #f))
   (let ((ls (list-dir base)))
     (let ((files.dirs
            (fold (lambda (name f.d)
-                   (let ((files (car f.d))
-                         (dirs  (cdr f.d)))
-                     (let* ((t (stat:type (stat name)))
-                            (f (if (fn name t) (cons name files) files)))
-                       (if (or (eq? t 'directory)
-                               (and follow-symlink
-                                    (eq? t symlink)))
-                           (cons f (cons name dirs))
-                           (cons f dirs)))))
+                   ;; There is a risk that some paths may have disappeared during recursive search.
+                   ;; To avoid an error, we can catch the exception from the stat function
+
+                   ;; (let ((t (guard #f (stat:type (stat name)))))
+                   ;;   (if t
+                   ;;       (let* ((files (car f.d))
+                   ;;              (dirs  (cdr f.d))
+                   ;;              (f (if (fn name t) (cons name files) files)))
+                   ;;         (if (or (eq? t 'directory)
+                   ;;                 (and follow-symlink
+                   ;;                      (eq? t symlink)))
+                   ;;             (cons f (cons name dirs))
+                   ;;             (cons f dirs)))
+                   ;;       f.d))
+
+                   (let* ((files (car f.d))
+                          (dirs  (cdr f.d))
+                          (t (stat:type (stat name)))
+                          (f (if (fn name t) (cons name files) files)))
+                     (if (or (eq? t 'directory)
+                             (and follow-symlink
+                                  (eq? t symlink)))
+                         (cons f (cons name dirs))
+                         (cons f dirs))))
                  '(()) ls)))
       (let ((files (car files.dirs))
             (dirs (cdr files.dirs)))
         (fold (lambda (dir files)
-                (append files (find-paths fn dir follow-symlink)))
+                (append files (find-paths-rec fn dir follow-symlink)))
               files dirs)))))
 
 ;;;
-;;; Find files with name matched a regular expression
-;;; (find-files-regexp rx base [follow-symlink #f]) -> (listof path?)
+;;; Recursive find files with name matched a regular expression
+;;; (find-files-rec-regexp rx base [follow-symlink #f]) -> (listof path?)
 ;;;   rx   : string?
 ;;;   base : string?
 ;;;   follow-symlink : boolean?
@@ -294,14 +338,39 @@
 ;;; rx - regulat expression
 ;;; base - base directory for files search
 ;;;
-(define* (find-files-regexp rx base #:optional (follow-symlink #f))
+(define* (find-files-rec-regexp rx base #:optional (follow-symlink #f))
   (if (eq? 'regular (stat:type (stat base)))
       (if (string-match rx (basename base)) (list base) '())
-      (find-paths
+      (find-paths-rec
        (lambda (f t)
          (and (eq? t 'regular)
               (string-match rx (basename f))))
        base follow-symlink)))
+
+;;;
+;;; Recursive find files in testbench base directory
+;;;
+(define* (utest/find-files-rec rx #:key (base "") (follow-symlink #f))
+  (find-files-rec-regexp
+   rx
+   (if (string-null? base)
+       (utest/base-path)
+       (format "~a/~a" (utest/base-path) base))
+   follow-symlink))
+
+;;;
+;;; Find files in testbench base directory
+(define* (utest/find-files rx #:key (base "") (follow-symlink #f))
+  (let* ((base (path->absolute
+                (if (string-null? base)
+                    (utest/base-path)
+                    (format "~a/~a" (utest/base-path) base))))
+         (ls (list-dir base)))
+    (filter (lambda (f)
+              (and (not (string=? f "."))
+                   (not (string=? f ".."))
+                   (string-match rx f)))
+            ls)))
 
 ;;;
 ;;; Prepare argument list
@@ -539,7 +608,7 @@
 (define (collect-test-procs files)
   (fold
    (lambda (f procs)
-     (let ((f (canonicalize-path f)))
+     (let ((f (path->absolute f)))
        (append
         procs
         (map (lambda (proc) (list proc (dirname f) (basename f)))
@@ -556,7 +625,7 @@
          (base  (cadr test))
          (name  (proc 'name))
          (name  (format "~a~a/~a"
-                        (let* ((pwd (string-append (canonicalize-path (getcwd)) "/"))
+                        (let* ((pwd (string-append (path->absolute (getcwd)) "/"))
                                (base-loc
                                 (if (string-prefix? pwd base)
                                     (substring base (string-length pwd))
@@ -740,7 +809,7 @@
 (define (delete-work-dirs base force)
   (let ((work-dirs
          (if force
-             (find-paths
+             (find-paths-rec
               (lambda (p t)
                 (and (eq? t 'directory)
                      (string-match
@@ -751,14 +820,14 @@
               (lambda (makefile work-dirs)
                 (append
                  work-dirs
-                 (find-paths
+                 (find-paths-rec
                   (lambda (p t)
                     (and (eq? t 'directory)
                          (string-match
                           (format "^~a~a.*-[0-9]{10}-.{6}$" WORK_DIR_PREFIX (basename makefile))
                           (basename p))))
                   (dirname makefile))))
-              '() (find-files-regexp MAKEFILE_NAME_REGEXP base)))))
+              '() (find-files-rec-regexp MAKEFILE_NAME_REGEXP base)))))
     (if (null? work-dirs)
         (printf "Working folders not found\n")
         (for-each
@@ -841,7 +910,7 @@
          (jobs    (string->number (option-ref options 'jobs "0")))
          (jobs    (if (zero? jobs) (current-processor-count) jobs))
          (rest    (option-ref options '() '()))
-         (path    (canonicalize-path (if (null? rest) (getcwd) (car rest)))))
+         (path    (path->absolute (if (null? rest) (getcwd) (car rest)))))
 
     (cond
      ((option-ref options 'help #f)        (print-help (car args)))
@@ -860,7 +929,7 @@
       (let ((makefiles
              (if (eq? 'regular (stat:type (stat path)))
                  (list path)
-                 (find-files-regexp MAKEFILE_NAME_REGEXP path))))
+                 (find-files-rec-regexp MAKEFILE_NAME_REGEXP path))))
 
         (if (<= jobs 1)
             (execute-tests (collect-test-procs makefiles))
