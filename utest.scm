@@ -549,7 +549,7 @@
                                         (vpipaths '())
                                         (warnings "all")
                                         (dumpformat 'fst)
-                                        (timeout '(1 ms)))
+                                        (timeout '(1 s)))
 
   ;; Get parameters
   (let ((force-dump (utest/force-dump))
