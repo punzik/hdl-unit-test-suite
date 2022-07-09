@@ -880,7 +880,7 @@
   (* "Options:")
   (* "  -k, --keep           Do not delete work directory if test is pass.")
   (* "  -d, --dump           Force dump waveforms.")
-  (* "  -r, --no-restart     Do not restart testbench with waveform dump enabled if")
+  (* "  -r, --norestart      Do not restart testbench with waveform dump enabled if")
   (* "                       test failed (true by default)")
   (* "  -n, --nocolor        Do not use color for print log")
   (* "  -j, --jobs NUM       Use NUM threads for running testbenches. If <=0")
@@ -907,7 +907,7 @@
 (let ((args (command-line)))
   (let* ((optspec `((keep (single-char #\k))
                     (dump (single-char #\d) (value #f))
-                    (no-restart (single-char #\r) (value #f))
+                    (norestart (single-char #\r) (value #f))
                     (nocolor (single-char #\n) (value #f))
                     (verbose (single-char #\v) (value #f))
                     (jobs (single-char #\j) (value #t) (predicate ,string->number))
@@ -933,7 +933,7 @@
      (else
       (utest/keep-output  (option-ref options 'keep #f))
       (utest/force-dump   (option-ref options 'dump #f))
-      (utest/restart-dump (not (option-ref options 'no-restart #f)))
+      (utest/restart-dump (not (option-ref options 'norestart #f)))
       (utest/nocolor      (option-ref options 'nocolor #f))
       (utest/verbose      (option-ref options 'verbose #f))
 
