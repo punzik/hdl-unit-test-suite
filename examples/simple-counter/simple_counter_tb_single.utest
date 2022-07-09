@@ -1,0 +1,12 @@
+;; -*- scheme -*-
+;; ^^^ this comment tells Emacs to use Scheme mode
+
+(utest/tb
+ ("simple_counter_tb"
+  "Simplest testbench Simple Counter")
+
+ (utest/run-simulation-iverilog
+  ;; sources
+  '("simple_counter.sv" "simple_counter_tb.sv")
+  ;; top module name
+  "simple_counter_tb"))

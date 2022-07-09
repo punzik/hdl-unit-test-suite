@@ -1,0 +1,25 @@
+;; -*- scheme -*-
+;; ^^^ this comment tells Emacs to use Scheme mode
+
+(utest/tb
+ ("simple_counter_permanent"
+  "Testbench for Simple Counter with permanent work dir")
+
+ ;; get base dir and make work dir
+ (let* ((base (utest/base-path))
+        (work (format "~a/work" base)))
+
+   (when (not (file-exists? work))
+     (mkdir work))
+
+   ;; parameterize work dir
+   (parameterize
+       ((utest/work-path work)
+        (utest/force-dump #t))
+
+     ;; testbench body
+     (utest/run-simulation-iverilog
+      ;; sources
+      '("simple_counter.sv" "simple_counter_tb.sv")
+      ;; top module name
+      "simple_counter_tb"))))

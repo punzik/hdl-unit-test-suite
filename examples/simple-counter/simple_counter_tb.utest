@@ -1,0 +1,44 @@
+;; -*- scheme -*-
+
+;;; Make lists combinations
+;;; Example: (combinations '(1 2 3) '(a b)) -> '((1 a) (1 b) (2 a) (2 b) (3 a) (3 b))
+(define (combinations . lists)
+  (cond
+   ((null? lists) '())
+   ((null? (cdr lists)) (car lists))
+   (else
+    (fold (lambda (comb out)
+            (append out
+                    (map (lambda (x)
+                           (if (list? comb)
+                               (cons x comb)
+                               (list x comb)))
+                         (car lists))))
+          '() (apply combinations (cdr lists))))))
+
+;;; Testbenches
+(map
+ (lambda (l)
+   (let ((count (car l))
+         (direction (cadr l)))
+     (utest/tb
+      ((format "c~a_d~a" count direction)
+       "More complex testbench for Simple Counter"
+       (format "COUNT=~a\tDIRECTION=~a" count direction))
+
+      ;; Instead of a description, you can display the message in log
+      ;; (utest/log 'info "COUNT = ~a" count)
+
+      ;; testbench body
+      (utest/run-simulation-iverilog
+       (utest/find-files ".*\\.sv$")
+       "simple_counter_tb"
+       #:parameters `((COUNT      ,count)
+                      (ITERATIONS ,(* count 3))
+                      (DIRECTION  ,direction))))))
+
+ (combinations
+  (append '(10 100 1000 16 64 256)
+          (let ((state (seed->random-state 0)))
+            (map (lambda (x) (+ 2 (random 200 state))) (iota 100))))
+  '(1 -1 0)))
