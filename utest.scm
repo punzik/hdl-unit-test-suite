@@ -569,7 +569,9 @@
                              `((UTEST_BASE_DIR ,(format "'\"~a\"'" base-path))
                                (UTEST_WORK_DIR ,(format "'\"~a\"'" work-path)))))
 
-            (includes (map (lambda (x) (path->absolute x base-path)) (arg-to-list includes)))
+            (includes (append (map (lambda (x) (path->absolute x base-path)) (arg-to-list includes))
+                              (list base-path)))
+
             (modpaths (map (lambda (x) (path->absolute x base-path)) (arg-to-list modpaths)))
             (vpipaths (map (lambda (x) (path->absolute x base-path)) (arg-to-list vpipaths)))
             (execfile (format "~a/~a.vvp" work-path top)))
