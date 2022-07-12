@@ -8,12 +8,10 @@
      (utest/tb
       ((format "log2_~a" arg))
 
-      (if (utest/iverilog-compile-vpi "vpi_log2.c" #:name top #:libs "m")
-          (utest/run-simulation-iverilog
-           "vpi_log2.sv"
-           top
-           #:parameters          `((ARGUMENT ,arg))
-           #:vpimods             top)
-
-          #f)))
+      (and (utest/iverilog-compile-vpi "vpi_log2.c" #:name top #:libs "m")
+           (utest/run-simulation-iverilog
+            "vpi_log2.sv"
+            top
+            #:parameters `((ARGUMENT ,arg))
+            #:vpimods    top))))
    (iota 20)))
