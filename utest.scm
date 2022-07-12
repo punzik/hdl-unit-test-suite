@@ -430,8 +430,9 @@
 ;;;
 ;;; Execute system command and capture stdout and stderr to string list
 ;;;
-(define (system-to-string-list cmd)
-  (let* ((cmd (string-append cmd " 2>&1;"))
+(define* (system-to-string-list cmd #:key (pwd #f))
+  (let* ((cmd (string-append cmd " 2>&1"))
+         (cmd (if pwd (format "cd ~a; ~a" pwd cmd) cmd))
          (p (open-input-pipe cmd))
          (out (get-string-all p)))
     (values
@@ -538,6 +539,74 @@
           (values (= status 0) cmdline output))))))
 
 ;;;
+;;; Call iverilog-vpi tool
+;;;
+(define* (iverilog-compile-vpi sources
+                               #:key
+                               (iverilog-vpi-executable "iverilog-vpi")
+                               (output-dir #f)
+                               (name #f)                ; --name
+                               (libs '())               ; -l
+                               (libdirs '())            ; -L
+                               (includes '())           ; -I
+                               (defines '()))           ; -D
+  (define (string-or-num-param x)
+    (if (number? x)
+        (format "~a" x)
+        (format "'\"~a\"'" x)))
+
+  (let ((opts
+         (cons
+          iverilog-vpi-executable
+          (append
+           (if (and name (not (string-null? name))) (list (format "--name=~a" name)))
+           (map (lambda (x) (format "-l~a" x)) (arg-to-list libs))
+           (map (lambda (x) (format "-L~a" x)) (arg-to-list libdirs))
+           (map (lambda (x) (format "-I~a" x)) (arg-to-list includes))
+           (map (lambda (x)
+                  (if (list? x)
+                      (format "-D~a=~a" (car x) (string-or-num-param (cadr x)))
+                      (format "-D~a" x)))
+                defines)
+           (arg-to-list sources)))))
+
+    (let* ((cmdline (fold (lambda (x s) (string-append s x " ")) "" opts)))
+      (let-values (((status output)
+                    (system-to-string-list cmdline #:pwd output-dir)))
+        (values (= status 0) cmdline output)))))
+
+;;;
+;;; VPI compiler wrapper for run inside tests
+;;;
+(define* (utest/iverilog-compile-vpi sources
+                                     #:key
+                                     (iverilog-vpi-executable "iverilog-vpi")
+                                     (output-dir #f)
+                                     (name #f)
+                                     (libs '())
+                                     (libdirs '())
+                                     (includes '())
+                                     (defines '()))
+  (let ((base-path (utest/base-path))
+        (work-path (utest/work-path)))
+    (let ((sources (map (lambda (x) (path->absolute x base-path)) (arg-to-list sources)))
+          (libdirs (map (lambda (x) (path->absolute x base-path)) (arg-to-list libdirs)))
+          (includes (map (lambda (x) (path->absolute x base-path)) (arg-to-list includes))))
+      (let-values (((succ cmdl output)
+                    (iverilog-compile-vpi sources
+                                          #:iverilog-vpi-executable iverilog-vpi-executable
+                                          #:output-dir (if output-dir output-dir work-path)
+                                          #:name name
+                                          #:libs libs
+                                          #:libdirs libdirs
+                                          #:includes includes
+                                          #:defines defines)))
+        ;; Print command line and output
+        (printf "$ ~a\n" cmdl)
+        (for-each println output)
+        succ))))
+
+;;;
 ;;; Check log for errors or warnings
 ;;;
 (define (check-log log)
@@ -605,9 +674,10 @@
             (defines (append defines (utest-verilog-defines)))
             (includes (append (map (lambda (x) (path->absolute x base-path)) (arg-to-list includes))
                               (list base-path)))
-
             (modpaths (map (lambda (x) (path->absolute x base-path)) (arg-to-list modpaths)))
-            (vpipaths (map (lambda (x) (path->absolute x base-path)) (arg-to-list vpipaths)))
+            (vpipaths (map (lambda (x) (path->absolute x base-path))
+                           (let ((vpipaths (arg-to-list vpipaths)))
+                             (if (null? vpipaths) (list work-path) vpipaths))))
             (execfile (format "~a/~a.vvp" work-path top)))
 
         (let ((succ
