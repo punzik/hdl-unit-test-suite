@@ -708,7 +708,7 @@
                                                (not (eq? pass #t))))
 
                       ;; Save log
-                      (with-output-to-file (format "~a/test-log.txt" work)
+                      (with-output-to-file (format "~a/log.txt" work)
                         (lambda () (print-log log #:colorize #f #:verbose #t)))
 
                       ;; Delete work dir if test pass and no need to keep directory
