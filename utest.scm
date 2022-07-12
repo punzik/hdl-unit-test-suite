@@ -844,11 +844,11 @@
 (define (execute-tests tests)
   (let ((test-count (length tests))
         (pass-count
-         (fold (lambda (test cnt)
-                 (let-values (((pass out) (execute-test test)))
-                   (println out)
-                   (+ cnt (if pass 1 0))))
-               0 tests)))
+         (apply + (map (lambda (test)
+                         (let-values (((pass out) (execute-test test)))
+                           (println out)
+                           (if pass 1 0)))
+                       tests))))
     (printf "PASSED ~a/~a\n\n" pass-count test-count)))
 
 ;;;
