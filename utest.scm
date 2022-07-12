@@ -359,12 +359,32 @@
    follow-symlink))
 
 ;;;
+;;; Get path relative to base
+;;;
+(define (utest/base-rel path)
+  (if (absolute-file-name? path)
+      path
+      (path->absolute
+       (if (string-null? path)
+           (utest/base-path)
+           (string-append (utest/base-path) "/" path)))))
+
+;;;
+;;; Get path relative to work
+;;;
+(define (utest/work-rel path)
+  (if (absolute-file-name? path)
+      path
+      (path->absolute
+       (if (string-null? path)
+           (utest/work-path)
+           (string-append (utest/work-path) "/" path)))))
+
+;;;
 ;;; Find files in testbench base directory
+;;;
 (define* (utest/find-files rx #:key (base "") (follow-symlink #f))
-  (let* ((base (path->absolute
-                (if (string-null? base)
-                    (utest/base-path)
-                    (format "~a/~a" (utest/base-path) base))))
+  (let* ((base (utest/base-rel base))
          (ls (list-dir base)))
     (filter (lambda (f)
               (and (not (string=? f "."))
