@@ -529,6 +529,24 @@
      (else #t))))
 
 ;;;
+;;; Return list of UTEST_* defines
+;;;
+(define (utest-verilog-defines)
+  (append
+   `((UTEST_BASE_DIR ,(format "'\"~a\"'" (utest/base-path)))
+     (UTEST_WORK_DIR ,(format "'\"~a\"'" (utest/work-path))))
+
+   (fold (lambda (x l)
+           (if (car x)
+               (append l (cdr x))
+               l))
+         '()
+         `((,(utest/verbose)      UTEST_VERBOSE)
+           (,(utest/force-dump)   UTEST_FORCE_DUMP)
+           (,(utest/keep-output)  UTEST_KEEP_OUTPUT)
+           (,(utest/restart-dump) UTEST_RESTART_DUMP)))))
+
+;;;
 ;;; Run compile and simulation with Icarus Verilog
 ;;;
 (define* (utest/run-simulation-iverilog sources
@@ -564,11 +582,7 @@
       (let ((sources (append (map (lambda (x) (path->absolute x base-path))
                                   (arg-to-list sources))
                              (list timeout-module dump-module)))
-
-            (defines (append defines
-                             `((UTEST_BASE_DIR ,(format "'\"~a\"'" base-path))
-                               (UTEST_WORK_DIR ,(format "'\"~a\"'" work-path)))))
-
+            (defines (append defines (utest-verilog-defines)))
             (includes (append (map (lambda (x) (path->absolute x base-path)) (arg-to-list includes))
                               (list base-path)))
 
