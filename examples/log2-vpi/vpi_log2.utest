@@ -1,0 +1,19 @@
+;; -*- scheme -*-
+
+;; Compile VPI module for each test
+
+(let ((top "vpi_log2"))
+  (map
+   (lambda (arg)
+     (utest/tb
+      ((format "log2_~a" arg))
+
+      (if (utest/iverilog-compile-vpi "vpi_log2.c" #:name top #:libs "m")
+          (utest/run-simulation-iverilog
+           "vpi_log2.sv"
+           top
+           #:parameters          `((ARGUMENT ,arg))
+           #:vpimods             top)
+
+          #f)))
+   (iota 20)))

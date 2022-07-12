@@ -1,0 +1,25 @@
+;; -*- scheme -*-
+
+;; Uses one common VPI module compiled in the testbench base directory
+
+(let ((top "vpi_log2"))
+  ;; compile VPI module in the base directory
+  (if (utest/iverilog-compile-vpi "vpi_log2.c"
+                                  #:output-dir (utest/base-path)
+                                  #:name top #:libs "m")
+      (map
+       (lambda (arg)
+         (utest/tb
+          ((format "log2_~a" arg))
+
+          (utest/run-simulation-iverilog
+           "vpi_log2.sv"
+           top
+
+           #:parameters          `((ARGUMENT ,arg))
+           #:vpimods             top
+           ;; VPI modules search path
+           #:vpipaths            (utest/base-path))))
+       (iota 20))
+
+      #f))
