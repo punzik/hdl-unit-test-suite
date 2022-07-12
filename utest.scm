@@ -620,12 +620,23 @@
 (define (collect-test-procs files)
   (fold
    (lambda (f procs)
-     (let ((f (path->absolute f)))
+     (let* ((f (path->absolute f))
+            (base (dirname f)))
        (append
         procs
-        (map (lambda (proc) (list proc (dirname f) (basename f)))
-             (let ((procs (load f)))
-               (if (list? procs) procs (list procs)))))))
+        (filter
+         car
+         (map (lambda (proc) (list proc base (basename f)))
+              (let ((procs
+                     (parameterize ((utest/base-path base)
+                                    (utest/work-path #f))
+                       (load f))))
+                (if procs
+                    (if (list? procs) procs
+                        (if (procedure? procs)
+                            (list procs)
+                            '(#f)))
+                    '(#f))))))))
    '() files))
 
 ;;;
