@@ -50,6 +50,7 @@
 (define utest/restart-dump  (make-parameter #f))
 (define utest/keep-output   (make-parameter #f))
 (define utest/verbose       (make-parameter #f))
+(define utest/static        (make-parameter #f))
 (define utest/nocolor       (make-parameter #f))
 (define utest/base-path     (make-parameter ""))
 (define utest/work-path     (make-parameter ""))
@@ -802,12 +803,21 @@
         (makefile-name (caddr test)))
     (let* ((name (proc 'name))
            (name (if name name "noname"))
-           (work (mkdtemp (format "~a/~a~a-~a-~a-XXXXXX"
-                                  base WORK_DIR_PREFIX
-                                  makefile-name
-                                  (string-map (lambda (c) (if (char-whitespace? c) #\_ c))
-                                              (string-downcase name))
-                                  (current-time)))))
+           (work
+            (if (utest/static)
+                (let ((dir-name
+                       (format "~a/~a~a-static"
+                               base WORK_DIR_PREFIX
+                               makefile-name)))
+                  (when (not (access? dir-name W_OK))
+                    (mkdir dir-name))
+                  dir-name)
+                (mkdtemp (format "~a/~a~a-~a-~a-XXXXXX"
+                                 base WORK_DIR_PREFIX
+                                 makefile-name
+                                 (string-map (lambda (c) (if (char-whitespace? c) #\_ c))
+                                             (string-downcase name))
+                                 (current-time))))))
       ;; Execute test
       (let* ((p #f)
              (o (with-output-to-string
@@ -940,9 +950,13 @@
              (find-paths-rec
               (lambda (p t)
                 (and (eq? t 'directory)
-                     (string-match
-                      (format "^~a.*-[0-9]{10}-.{6}$" WORK_DIR_PREFIX)
-                      (basename p))))
+                     (or
+                      (string-match
+                       (format "^~a.*-[0-9]{10}-.{6}$" WORK_DIR_PREFIX)
+                       (basename p))
+                      (string-match
+                       (format "^~a.*-static$" WORK_DIR_PREFIX)
+                       (basename p)))))
               base)
              (fold
               (lambda (makefile work-dirs)
@@ -951,9 +965,13 @@
                  (find-paths-rec
                   (lambda (p t)
                     (and (eq? t 'directory)
-                         (string-match
-                          (format "^~a~a.*-[0-9]{10}-.{6}$" WORK_DIR_PREFIX (basename makefile))
-                          (basename p))))
+                         (or
+                          (string-match
+                           (format "^~a~a.*-[0-9]{10}-.{6}$" WORK_DIR_PREFIX (basename makefile))
+                           (basename p))
+                          (string-match
+                           (format "^~a~a.*-static$" WORK_DIR_PREFIX (basename makefile))
+                           (basename p)))))
                   (dirname makefile))))
               '() (find-files-rec-regexp MAKEFILE_NAME_REGEXP base)))))
     (if (null? work-dirs)
@@ -999,6 +1017,7 @@
   (* "  -d, --dump           Force dump waveforms.")
   (* "  -r, --norestart      Do not restart testbench with waveform dump enabled if")
   (* "                       test failed (true by default)")
+  (* "  -s, --static         Use static work dir for initial debug purposes")
   (* "  -n, --nocolor        Do not use color for print log")
   (* "  -j, --jobs NUM       Use NUM threads for running testbenches. If <=0")
   (* "                       use as many threads as there are processors in the system.")
@@ -1025,6 +1044,7 @@
   (let* ((optspec `((keep (single-char #\k))
                     (dump (single-char #\d) (value #f))
                     (norestart (single-char #\r) (value #f))
+                    (static (single-char #\s) (value #f))
                     (nocolor (single-char #\n) (value #f))
                     (verbose (single-char #\v) (value #f))
                     (jobs (single-char #\j) (value #t) (predicate ,string->number))
@@ -1051,6 +1071,7 @@
       (utest/keep-output  (option-ref options 'keep #f))
       (utest/force-dump   (option-ref options 'dump #f))
       (utest/restart-dump (not (option-ref options 'norestart #f)))
+      (utest/static       (option-ref options 'static #f))
       (utest/nocolor      (option-ref options 'nocolor #f))
       (utest/verbose      (option-ref options 'verbose #f))
 

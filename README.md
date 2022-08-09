@@ -19,6 +19,7 @@ Options:
   -d, --dump           Force dump waveforms.
   -r, --norestart      Do not restart testbench with waveform dump enabled if
                        test failed (true by default)
+  -s, --static         Use static work dir for initial debug purposes
   -n, --nocolor        Do not use color for print log
   -j, --jobs NUM       Use NUM threads for running testbenches. If <=0
                        use as many threads as there are processors in the system.
