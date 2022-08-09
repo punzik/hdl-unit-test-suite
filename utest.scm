@@ -54,6 +54,7 @@
 (define utest/nocolor       (make-parameter #f))
 (define utest/base-path     (make-parameter ""))
 (define utest/work-path     (make-parameter ""))
+(define utest/extra         (make-parameter '()))
 
 (define-record-type <log-type>
   (log-type log-prefix color out-prefix verbose)
@@ -983,6 +984,24 @@
          work-dirs))))
 
 ;;;
+;;; Parse extra parameters
+;;;
+(define (parse-extra-param-string str)
+  (map (lambda (param)
+         (let ((s (string-split param #\=)))
+           (if (= 1 (length s))
+               (cons (car s) #t)
+               (cons (car s) (if (string-null? (cadr s)) #t (cadr s))))))
+       (string-split str #\,)))
+
+;;;
+;;; Retrive extra parameter
+;;;
+(define (utest/extra-param key)
+  (let ((val (assoc key (utest/extra))))
+    (if (pair? val) (cdr val) val)))
+
+;;;
 ;;; Print log level verilog defines
 ;;;
 (define (print-verilog-defines)
@@ -1024,6 +1043,7 @@
   (* "  -f, --defines        Print useful Verilog defines")
   (* "  -c, --clean          Delete work folders that have a corresponding makefile.")
   (* "      --force-clean    Delete all work folders regardless of the presence of a makefile.")
+  (* "  -x, --extra P[=V]    Add parameter P with optional value V for test script")
   (* "  -v, --verbose        Verbose output")
   (* "  -V, --version        Print version")
   (* "  -h, --help           Print this message and exit")
@@ -1048,6 +1068,7 @@
                     (nocolor (single-char #\n) (value #f))
                     (verbose (single-char #\v) (value #f))
                     (jobs (single-char #\j) (value #t) (predicate ,string->number))
+                    (extra (single-char #\x) (value #t))
                     (help (single-char #\h) (value #f))
                     (version (single-char #\V) (value #f))
                     (clean (single-char #\c) (value #f))
@@ -1066,7 +1087,6 @@
      ((option-ref options 'defines #f)     (print-verilog-defines))
      ((option-ref options 'clean #f)       (delete-work-dirs path #f))
      ((option-ref options 'force-clean #f) (delete-work-dirs path #t))
-
      (else
       (utest/keep-output  (option-ref options 'keep #f))
       (utest/force-dump   (option-ref options 'dump #f))
@@ -1074,6 +1094,7 @@
       (utest/static       (option-ref options 'static #f))
       (utest/nocolor      (option-ref options 'nocolor #f))
       (utest/verbose      (option-ref options 'verbose #f))
+      (utest/extra        (parse-extra-param-string (option-ref options 'extra "")))
 
       (let ((makefiles
              (if (eq? 'regular (stat:type (stat path)))
