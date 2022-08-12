@@ -1101,6 +1101,6 @@
                  (list path)
                  (find-files-rec-regexp MAKEFILE_NAME_REGEXP path))))
 
-        (if (<= jobs 1)
+        (if (or (<= jobs 1) (utest/static))
             (execute-tests (collect-test-procs makefiles))
             (execute-tests-parallel (collect-test-procs makefiles) jobs)))))))
