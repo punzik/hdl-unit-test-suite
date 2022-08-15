@@ -483,6 +483,7 @@
                            (warnings "all")         ; -W
                            (defines '())            ; -D=X
                            (parameters '())         ; -P=X
+                           (verbose #f)
                            (other '()))
 
   (define (string-or-num-param x)
@@ -494,6 +495,7 @@
          (cons
           iverilog-executable
           (append
+           (if verbose '("-v") '())
            (if lang (list (format "-g~a" lang)) '())
            (if output (list "-o" output) '())
            (if separate '("-u") '())
@@ -536,11 +538,13 @@
                        (vpipaths '())           ; -M
                        (vpimods '())            ; -m
                        (dumpformat 'fst)
-                       (plusargs '()))
+                       (plusargs '())
+                       (verbose #f))
   (let ((opts
          (cons
           vvp-executable
           (append
+           (if verbose '("-v") '())
            (map (lambda (x) (format "-M~a" x)) (arg-to-list vpipaths))
            (map (lambda (x) (format "-m~a" x)) (arg-to-list vpimods))
            (list "-N" vvp-binary)   ; $finish on CTRL-C
@@ -713,7 +717,7 @@
                                        #:top top #:other `("-s" ,TIMEOUT_MODULE_NAME "-s" ,DUMP_MODULE_NAME)
                                        #:output execfile #:lang lang #:features features #:vpipaths vpipaths
                                        #:vpimods vpimods #:separate separate #:warnings warnings #:defines defines
-                                       #:parameters parameters)))
+                                       #:parameters parameters #:verbose (utest/verbose))))
 
                  ;; Print iverilog command line and output
                  (printf "$ ~a\n" cmdl)
@@ -728,7 +732,7 @@
                              (iverilog-run execfile
                                            #:vvp-executable vvp-executable #:vpipaths vpipaths
                                            #:vpimods vpimods #:dumpformat (if dump dumpformat 'none)
-                                           #:plusargs plusargs)))
+                                           #:plusargs plusargs #:verbose (utest/verbose))))
                          (let ((succ (if succ (check-log outp) succ)))
                            (if (or succ dump (not (utest/restart-dump)))
                                (begin
