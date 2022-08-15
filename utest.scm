@@ -122,6 +122,27 @@
                 #\newline))))
     (for-each println strs) #t))
 
+;;; Transpose matrix
+;;; Example: (transpose '((1 2) (3 4) (5 6))) -> '((1 3 5) (2 4 6))
+(define (transpose l)
+  (apply map list l))
+
+;;; Make lists combinations
+;;; Example: (combinations '(1 2 3) '(a b)) -> '((1 a) (1 b) (2 a) (2 b) (3 a) (3 b))
+(define (combinations . lists)
+  (cond
+   ((null? lists) '())
+   ((null? (cdr lists)) (car lists))
+   (else
+    (fold (lambda (comb out)
+            (append out
+                    (map (lambda (x)
+                           (if (list? comb)
+                               (cons x comb)
+                               (list x comb)))
+                         (car lists))))
+          '() (apply combinations (cdr lists))))))
+
 ;;;
 ;;; Colorize text
 ;;;
