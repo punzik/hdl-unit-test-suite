@@ -968,6 +968,18 @@
      (utest/tb (#f) body ...))))
 
 ;;;
+;;; Map combinations macro
+;;;
+(define-syntax utest/map-comb
+  (syntax-rules ()
+    ((_ (args ...) (body ...) lists ...)
+     (apply
+      map
+      (lambda (args ...) (body ...))
+      (transpose
+       (combinations lists ...))))))
+
+;;;
 ;;; Delete working folders
 ;;;
 (define (delete-work-dirs base force)
