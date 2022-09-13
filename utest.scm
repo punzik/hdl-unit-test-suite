@@ -649,7 +649,8 @@
 ;;;
 (define (utest-verilog-defines)
   (append
-   `((UTEST_BASE_DIR ,(format "'\"~a\"'" (utest/base-path)))
+   `(UTEST_TESTBENCH
+     (UTEST_BASE_DIR ,(format "'\"~a\"'" (utest/base-path)))
      (UTEST_WORK_DIR ,(format "'\"~a\"'" (utest/work-path))))
 
    (fold (lambda (x l)
